@@ -1,0 +1,10 @@
+{
+  "dni": "12345678",
+  "first_name": "Juan",
+  "last_name": "Perez",
+  "dni_extension": "LP",
+  "password": "clave123",
+  "phone": "987654321",
+  "email": "jperez@mail.com",
+  "reputation_status_id": 1
+}
