@@ -39,4 +39,6 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/auth', authRouter);
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 module.exports = app;

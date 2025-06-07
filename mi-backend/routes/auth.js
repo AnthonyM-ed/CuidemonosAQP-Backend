@@ -4,6 +4,21 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { User } = require('../models');
 const authenticateToken = require('../middleware/authenticateToken');
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    const name = Date.now() + '-' + file.fieldname + ext;
+    cb(null, name);
+  }
+});
+
+const upload = multer({ storage });
 
 router.post('/login', async (req, res) => {
   const { identifier, password } = req.body; // puede ser dni o email
@@ -87,9 +102,22 @@ router.post('/logout', async (req, res) => {
   }
 });
 
-router.post('/register', async (req, res) => {
+router.post('/register', upload.fields([
+  { name: 'dni_photo', maxCount: 1 },
+  { name: 'profile_photo', maxCount: 1 },
+]), async (req, res) => {
   try {
-    const { dni, first_name, last_name, dni_extension, password, phone, email, reputation_status_id } = req.body;
+    const {
+      dni,
+      first_name,
+      last_name,
+      dni_extension,
+      password,
+      phone,
+      email,
+      reputation_status_id,
+      address,
+    } = req.body;
 
     if (!password) return res.status(400).json({ message: 'Password es obligatorio' });
 
@@ -97,6 +125,10 @@ router.post('/register', async (req, res) => {
     if (existingUser) return res.status(409).json({ message: 'Email ya registrado' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // URLs de las imágenes
+    const dni_photo_url = req.files['dni_photo'] ? `${req.protocol}://${req.get('host')}/uploads/${req.files['dni_photo'][0].filename}` : null;
+    const profile_photo_url = req.files['profile_photo'] ? `${req.protocol}://${req.get('host')}/uploads/${req.files['profile_photo'][0].filename}` : null;
 
     const newUser = await User.create({
       dni,
@@ -107,6 +139,9 @@ router.post('/register', async (req, res) => {
       phone,
       email,
       reputation_status_id,
+      address,
+      dni_photo_url,
+      profile_photo_url,
     });
 
     const userData = newUser.toJSON();
@@ -114,6 +149,7 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json(userData);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error al registrar usuario', error });
   }
 });

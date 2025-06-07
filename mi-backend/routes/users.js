@@ -2,6 +2,21 @@ const express = require('express');
 const router = express.Router();
 const { User } = require('../models'); // importa modelo Sequelize
 const authenticateToken = require('../middleware/authenticateToken');
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    const name = Date.now() + '-' + file.fieldname + ext;
+    cb(null, name);
+  }
+});
+
+const upload = multer({ storage });
 
 // GET /users - lista todos los usuarios (protegido)
 router.get('/', authenticateToken, async (req, res) => {
@@ -65,13 +80,23 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // PUT /users/:id - actualizar un usuario existente
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, upload.fields([
+  { name: 'dni_photo', maxCount: 1 },
+  { name: 'profile_photo', maxCount: 1 },
+]), async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body;
+  const updateData = { ...req.body };
 
   try {
     const user = await User.findByPk(id);
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    if (req.files['dni_photo']) {
+      updateData.dni_photo_url = `${req.protocol}://${req.get('host')}/uploads/${req.files['dni_photo'][0].filename}`;
+    }
+    if (req.files['profile_photo']) {
+      updateData.profile_photo_url = `${req.protocol}://${req.get('host')}/uploads/${req.files['profile_photo'][0].filename}`;
+    }
 
     await user.update(updateData);
 
@@ -80,6 +105,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     res.json(updatedUser);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error al actualizar el usuario', error });
   }
 });

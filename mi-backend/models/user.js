@@ -29,6 +29,9 @@ module.exports = (sequelize, DataTypes) => {
       first_name: DataTypes.STRING,
       last_name: DataTypes.STRING,
       dni_extension: DataTypes.STRING,
+      address: DataTypes.STRING,           // <-- nuevo
+      dni_photo_url: DataTypes.STRING,     // <-- nuevo
+      profile_photo_url: DataTypes.STRING, // <-- nuevo
       password: {
         type: DataTypes.STRING,
         allowNull: false,
