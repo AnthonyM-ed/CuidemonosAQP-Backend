@@ -47,4 +47,58 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /users/:id - obtener un usuario por su ID 
+router.get('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const user = await User.findByPk(id, {
+      attributes: { exclude: ['password'] }
+    });
+
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener el usuario', error });
+  }
+});
+
+// PUT /users/:id - actualizar un usuario existente
+router.put('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  try {
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    await user.update(updateData);
+
+    const updatedUser = user.toJSON();
+    delete updatedUser.password;
+
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al actualizar el usuario', error });
+  }
+});
+
+// PATCH /users/:id/password - cambiar contraseña
+router.patch('/:id/password', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { newPassword } = req.body;
+
+  try {
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await user.update({ password: hashedPassword });
+
+    res.json({ message: 'Contraseña actualizada exitosamente' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al actualizar la contraseña', error });
+  }
+});
 module.exports = router;
