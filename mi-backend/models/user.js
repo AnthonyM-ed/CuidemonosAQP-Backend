@@ -22,16 +22,19 @@ module.exports = (sequelize, DataTypes) => {
       return bcrypt.compareSync(password, this.password);
     }
   }
-  
+
   User.init(
     {
       dni: { type: DataTypes.STRING, unique: true },
       first_name: DataTypes.STRING,
       last_name: DataTypes.STRING,
-      dni_extension: DataTypes.STRING,
-      address: DataTypes.STRING,           // <-- nuevo
-      dni_photo_url: DataTypes.STRING,     // <-- nuevo
-      profile_photo_url: DataTypes.STRING, // <-- nuevo
+      dni_extension: {
+        type: DataTypes.STRING,
+        allowNull: true, 
+      },
+      address: DataTypes.STRING,           
+      dni_photo_url: DataTypes.STRING,    
+      profile_photo_url: DataTypes.STRING, 
       password: {
         type: DataTypes.STRING,
         allowNull: false,
