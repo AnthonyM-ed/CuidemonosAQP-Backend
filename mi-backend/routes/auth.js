@@ -43,7 +43,7 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
-    
+
     const refreshToken = jwt.sign(
       { id: user.id },
       process.env.REFRESH_TOKEN_SECRET,
@@ -54,8 +54,12 @@ router.post('/login', async (req, res) => {
 
     res.json({ accessToken, refreshToken });
   } catch (error) {
-    console.error('Error en login:', error);
-    res.status(500).json({ message: 'Error al iniciar sesión', error });
+    console.error('Error en login:', error); // sigue mostrando en consola
+
+    res.status(500).json({
+      message: 'Error al iniciar sesión',
+      error: error.message || error.toString() // muestra el mensaje real
+    });
   }
 });
 
