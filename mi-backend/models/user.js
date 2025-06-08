@@ -30,11 +30,11 @@ module.exports = (sequelize, DataTypes) => {
       last_name: DataTypes.STRING,
       dni_extension: {
         type: DataTypes.STRING,
-        allowNull: true, 
+        allowNull: true,
       },
-      address: DataTypes.STRING,           
-      dni_photo_url: DataTypes.STRING,    
-      profile_photo_url: DataTypes.STRING, 
+      address: DataTypes.STRING,
+      dni_photo_url: DataTypes.STRING,
+      profile_photo_url: DataTypes.STRING,
       password: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -48,6 +48,10 @@ module.exports = (sequelize, DataTypes) => {
         references: { model: 'ReputationStatuses', key: 'id' },
       },
       is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+      refresh_token: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       sequelize,
