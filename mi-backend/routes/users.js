@@ -80,35 +80,48 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // PUT /users/:id - actualizar un usuario existente
-router.put('/:id', authenticateToken, upload.fields([
-  { name: 'dni_photo', maxCount: 1 },
-  { name: 'profile_photo', maxCount: 1 },
-]), async (req, res) => {
-  const { id } = req.params;
-  const updateData = { ...req.body };
+router.put(
+  '/:id',
+  authenticateToken,
+  upload.fields([
+    { name: 'dni_photo', maxCount: 1 },
+    { name: 'profile_photo', maxCount: 1 },
+  ]),
+  async (req, res) => {
+    const { id } = req.params;
+    const updateData = { ...req.body };
 
-  try {
-    const user = await User.findByPk(id);
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    try {
+      const user = await User.findByPk(id);
+      if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-    if (req.files['dni_photo']) {
-      updateData.dni_photo_url = `${req.protocol}://${req.get('host')}/uploads/${req.files['dni_photo'][0].filename}`;
+      // Validación opcional: asegurar que 'dni' no esté vacío si lo estás actualizando
+      if (updateData.dni === '') {
+        return res.status(400).json({ message: 'El DNI no puede estar vacío.' });
+      }
+
+      // Adjuntar URLs si se suben archivos
+      if (req.files?.dni_photo?.[0]) {
+        updateData.dni_photo_url = `${req.protocol}://${req.get('host')}/uploads/${req.files.dni_photo[0].filename}`;
+      }
+
+      if (req.files?.profile_photo?.[0]) {
+        updateData.profile_photo_url = `${req.protocol}://${req.get('host')}/uploads/${req.files.profile_photo[0].filename}`;
+      }
+
+      await user.update(updateData);
+
+      const updatedUser = user.toJSON();
+      delete updatedUser.password;
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Error al actualizar el usuario', error });
     }
-    if (req.files['profile_photo']) {
-      updateData.profile_photo_url = `${req.protocol}://${req.get('host')}/uploads/${req.files['profile_photo'][0].filename}`;
-    }
-
-    await user.update(updateData);
-
-    const updatedUser = user.toJSON();
-    delete updatedUser.password;
-
-    res.json(updatedUser);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al actualizar el usuario', error });
   }
-});
+);
+
 
 // PATCH /users/:id/password - cambiar contraseña
 router.patch('/:id/password', authenticateToken, async (req, res) => {

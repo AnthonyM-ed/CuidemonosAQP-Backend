@@ -128,8 +128,6 @@ router.post('/register', upload.fields([
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) return res.status(409).json({ message: 'Email ya registrado' });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     // URLs de las imágenes
     const dni_photo_url = req.files['dni_photo'] ? `${req.protocol}://${req.get('host')}/uploads/${req.files['dni_photo'][0].filename}` : null;
     const profile_photo_url = req.files['profile_photo'] ? `${req.protocol}://${req.get('host')}/uploads/${req.files['profile_photo'][0].filename}` : null;
@@ -139,7 +137,7 @@ router.post('/register', upload.fields([
       first_name,
       last_name,
       dni_extension,
-      password: hashedPassword,
+      password,
       phone,
       email,
       reputation_status_id,
