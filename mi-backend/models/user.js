@@ -33,8 +33,14 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       address: DataTypes.STRING,
-      dni_photo_url: DataTypes.STRING,
-      profile_photo_url: DataTypes.STRING,
+      dni_photo_url: {
+        type: DataTypes.STRING,
+        defaultValue: null, // o alguna imagen genérica
+      },
+      profile_photo_url: {
+        type: DataTypes.STRING,
+        defaultValue: null, // o alguna imagen genérica
+      },
       password: {
         type: DataTypes.STRING,
         allowNull: false,
