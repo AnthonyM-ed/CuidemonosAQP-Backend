@@ -14,6 +14,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         references: { model: 'Users', key: 'id' },
       },
+      confirmed: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
+      confirmed_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       sequelize,

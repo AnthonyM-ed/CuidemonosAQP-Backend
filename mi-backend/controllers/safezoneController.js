@@ -31,59 +31,85 @@ module.exports = {
     },
 
     async createSafeZone(req, res) {
-        const { latitude, longitude, status_id, user_ids } = req.body;
+        const {
+            name,
+            description,
+            category,
+            justification,
+            assumes_responsibility,
+            latitude,
+            longitude,
+            status_id,
+            user_ids,
+            rating
+        } = req.body;
 
-        // Asegúrate de que el usuario esté en sesión
         const creatorUserId = req.user?.id;
         if (!creatorUserId) {
             return res.status(401).json({ message: 'Usuario no autenticado' });
         }
 
-        // Agregar automáticamente al usuario autenticado si no está en el array
-        let fullUserIds = [...new Set([...user_ids, creatorUserId])]; // sin duplicados
+        // Convertir user_ids a array de números
+        const parsedUserIds = typeof user_ids === 'string'
+            ? user_ids.split(',').map(id => parseInt(id))
+            : Array.isArray(user_ids) ? user_ids : [];
 
-        if (fullUserIds.length !== 3) {
-            return res.status(400).json({ message: 'Se necesitan exactamente 3 usuarios distintos para validar una zona (incluyendo al creador)' });
+        let fullUserIds = [...new Set([...parsedUserIds, creatorUserId])];
+
+        if (fullUserIds.length < 3) {
+            return res.status(400).json({
+                message: 'Se necesitan al menos 3 usuarios distintos para validar una zona (incluyendo al creador)'
+            });
         }
 
         try {
-            // Verificar duplicado de zona activa en la misma ubicación
+            // Validación de zona duplicada
             const existingZone = await SafeZone.findOne({
-                where: {
-                    latitude,
-                    longitude,
-                    is_active: true
-                }
+                where: { latitude, longitude, is_active: true }
             });
 
             if (existingZone) {
                 return res.status(400).json({ message: 'Ya existe una zona activa en esta ubicación' });
             }
 
-            // Verificar que todos los usuarios estén activos
+            // Validación de usuarios activos
             const validUsers = await User.findAll({
-                where: {
-                    id: fullUserIds,
-                    is_active: true
-                }
+                where: { id: fullUserIds, is_active: true }
             });
 
-            if (validUsers.length !== 3) {
+            if (validUsers.length !== fullUserIds.length) {
                 return res.status(400).json({ message: 'Todos los usuarios deben estar activos' });
             }
+            
+            if (rating !== undefined && (rating < 0 || rating > 5)) {
+                return res.status(400).json({ message: 'El rating debe estar entre 0 y 5' });
+            }
 
-            // Crear zona segura
-            const newZone = await SafeZone.create({ latitude, longitude, status_id });
+            // Si se subió imagen, usar esa; si no, null o valor del body
+            const photo_url = req.file
+                ? `${req.protocol}://${req.get('host')}/uploads/safezones/${req.file.filename}`
+                : req.body.photo_url || null;
 
-            // Asociar usuarios
+            const newZone = await SafeZone.create({
+                name,
+                description,
+                category,
+                justification,
+                photo_url,
+                assumes_responsibility,
+                latitude,
+                longitude,
+                status_id,
+                rating: rating ?? 0
+            });
+
             const associations = fullUserIds.map(user_id => ({
                 safe_zone_id: newZone.id,
-                user_id,
+                user_id
             }));
 
             await SafeZoneUsers.bulkCreate(associations);
 
-            // Retornar con relaciones
             const zoneWithUsers = await SafeZone.findByPk(newZone.id, {
                 include: [
                     { model: PuntoSeguroStatus, as: 'status' },
@@ -99,15 +125,58 @@ module.exports = {
     },
 
     async updateSafeZone(req, res) {
-        const { latitude, longitude, status_id, is_active } = req.body;
+        const {
+            name,
+            description,
+            category,
+            justification,
+            assumes_responsibility,
+            latitude,
+            longitude,
+            status_id,
+            is_active,
+            rating
+        } = req.body;
+
         try {
             const zone = await SafeZone.findByPk(req.params.id);
-            if (!zone) return res.status(404).json({ message: 'Zona no encontrada' });
+            if (!zone) {
+                return res.status(404).json({ message: 'Zona no encontrada' });
+            }
 
-            await zone.update({ latitude, longitude, status_id, is_active });
-            res.json({ message: 'Zona actualizada correctamente', zone });
+            if (rating !== undefined && (rating < 0 || rating > 5)) {
+                return res.status(400).json({ message: 'El rating debe estar entre 0 y 5' });
+            }
+
+            const photo_url = req.file
+                ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+                : req.body.photo_url || zone.photo_url;
+
+            await zone.update({
+                name,
+                description,
+                category,
+                justification,
+                photo_url,
+                assumes_responsibility,
+                latitude,
+                longitude,
+                status_id,
+                is_active,
+                rating: rating ?? zone.rating
+            });
+
+            const updatedZone = await SafeZone.findByPk(zone.id, {
+                include: [
+                    { model: PuntoSeguroStatus, as: 'status' },
+                    { model: User, through: { attributes: [] } }
+                ]
+            });
+
+            res.json({ message: 'Zona actualizada correctamente', zone: updatedZone });
         } catch (err) {
             res.status(500).json({ message: 'Error al actualizar la zona', error: err.message });
         }
     }
+
 };
