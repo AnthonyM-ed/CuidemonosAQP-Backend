@@ -8,6 +8,7 @@ var logger = require('morgan');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var authRouter = require('./routes/auth');
+var safezonesRouter = require('./routes/safezones'); // ✅ importar ruta de zonas
 
 var app = express();
 
@@ -20,7 +21,7 @@ const sequelize = new Sequelize(
   {
     host: process.env.DB_HOST,
     dialect: process.env.DB_DIALECT,
-    logging: false, // desactiva logs SQL
+    logging: false,
     ssl: true,
   }
 );
@@ -38,6 +39,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/auth', authRouter);
+app.use('/safezones', safezonesRouter); // ✅ usar la ruta aquí
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
