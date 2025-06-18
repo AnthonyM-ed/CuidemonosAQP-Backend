@@ -25,7 +25,20 @@ module.exports = (sequelize, DataTypes) => {
 
   User.init(
     {
-      dni: { type: DataTypes.STRING, unique: true },
+      dni: {
+        type: DataTypes.STRING,
+        unique: true,
+        allowNull: false,
+        validate: {
+          isNumeric: {
+            msg: 'El DNI debe contener solo números'
+          },
+          len: {
+            args: [8, 8],
+            msg: 'El DNI debe tener 8 dígitos'
+          }
+        }
+      },
       first_name: DataTypes.STRING,
       last_name: DataTypes.STRING,
       dni_extension: {
@@ -50,7 +63,7 @@ module.exports = (sequelize, DataTypes) => {
       reputation_score: { type: DataTypes.INTEGER, defaultValue: 5 },
       reputation_status_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        defaultValue: 1,
         references: { model: 'ReputationStatuses', key: 'id' },
       },
       is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
