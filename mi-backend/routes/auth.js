@@ -4,31 +4,16 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { User } = require('../models');
 const authenticateToken = require('../middleware/authenticateToken');
-const multer = require('multer');
-const path = require('path');
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    const name = Date.now() + '-' + file.fieldname + ext;
-    cb(null, name);
-  }
-});
-
-const upload = multer({ storage });
+const { uploadFile, deleteFile, createUploadMiddleware } = require('../controllers/imageController');
 
 router.post('/login', async (req, res) => {
-  const { identifier, password } = req.body; // puede ser dni o email
+  const { identifier, password } = req.body;
 
   try {
     if (!identifier || !password) {
       return res.status(400).json({ message: 'DNI o Email y contraseña son requeridos' });
     }
 
-    // Determinar si es email o dni
     const isEmail = identifier.includes('@');
     const whereClause = isEmail ? { email: identifier } : { dni: identifier };
 
@@ -54,11 +39,10 @@ router.post('/login', async (req, res) => {
 
     res.json({ accessToken, refreshToken });
   } catch (error) {
-    console.error('Error en login:', error); // sigue mostrando en consola
-
+    console.error('Error en login:', error);
     res.status(500).json({
       message: 'Error al iniciar sesión',
-      error: error.message || error.toString() // muestra el mensaje real
+      error: error.message || error.toString()
     });
   }
 });
@@ -106,7 +90,7 @@ router.post('/logout', async (req, res) => {
   }
 });
 
-router.post('/register', upload.fields([
+router.post('/register', createUploadMiddleware([
   { name: 'dni_photo', maxCount: 1 },
   { name: 'profile_photo', maxCount: 1 },
 ]), async (req, res) => {
@@ -128,9 +112,24 @@ router.post('/register', upload.fields([
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) return res.status(409).json({ message: 'Email ya registrado' });
 
-    // URLs de las imágenes
-    const dni_photo_url = req.files['dni_photo'] ? `${req.protocol}://${req.get('host')}/uploads/${req.files['dni_photo'][0].filename}` : null;
-    const profile_photo_url = req.files['profile_photo'] ? `${req.protocol}://${req.get('host')}/uploads/${req.files['profile_photo'][0].filename}` : null;
+    let dni_photo_url = null;
+    let profile_photo_url = null;
+
+    try {
+      if (req.files['dni_photo']) {
+        dni_photo_url = await uploadFile(req.files['dni_photo'][0], 'dni_photos');
+      }
+
+      if (req.files['profile_photo']) {
+        profile_photo_url = await uploadFile(req.files['profile_photo'][0], 'profile_photos');
+      }
+    } catch (uploadError) {
+      console.error('Error al subir archivos:', uploadError);
+      return res.status(500).json({ 
+        message: 'Error al subir archivos', 
+        error: uploadError.message 
+      });
+    }
 
     const newUser = await User.create({
       dni,
@@ -152,7 +151,7 @@ router.post('/register', upload.fields([
     res.status(201).json(userData);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Error al registrar usuario', error });
+    res.status(500).json({ message: 'Error al registrar usuario', error: error.message });
   }
 });
 
@@ -168,4 +167,94 @@ router.get('/me', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error al obtener datos del usuario', error });
   }
 });
+
+// Subir nueva imagen
+router.post('/upload-image', authenticateToken, createUploadMiddleware('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No se proporcionó ningún archivo' });
+    }
+
+    const { type = 'general' } = req.body;
+    
+    const imageUrl = await uploadFile(req.file, `${type}_images`);
+
+    res.status(200).json({
+      message: 'Imagen subida exitosamente',
+      imageUrl,
+      type
+    });
+  } catch (error) {
+    console.error('Error al subir imagen:', error);
+    res.status(500).json({ 
+      message: 'Error al subir imagen', 
+      error: error.message 
+    });
+  }
+});
+
+// Actualizar foto de perfil
+router.put('/update-profile-photo', authenticateToken, createUploadMiddleware('profile_photo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No se proporcionó ningún archivo' });
+    }
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    // Eliminar foto anterior
+    if (user.profile_photo_url) {
+      await deleteFile(user.profile_photo_url);
+    }
+
+    // Subir nueva foto
+    const newProfilePhotoUrl = await uploadFile(req.file, 'profile_photos');
+
+    await User.update(
+      { profile_photo_url: newProfilePhotoUrl },
+      { where: { id: req.user.id } }
+    );
+
+    res.status(200).json({
+      message: 'Foto de perfil actualizada exitosamente',
+      profile_photo_url: newProfilePhotoUrl
+    });
+  } catch (error) {
+    console.error('Error al actualizar foto de perfil:', error);
+    res.status(500).json({ 
+      message: 'Error al actualizar foto de perfil', 
+      error: error.message 
+    });
+  }
+});
+
+// Obtener imágenes del usuario
+router.get('/my-images', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'dni_photo_url', 'profile_photo_url', 'first_name', 'last_name']
+    });
+    
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    const images = {
+      profile_photo: user.profile_photo_url,
+      dni_photo: user.dni_photo_url,
+      user_info: {
+        id: user.id,
+        name: `${user.first_name} ${user.last_name}`
+      }
+    };
+
+    res.json(images);
+  } catch (error) {
+    console.error('Error al obtener imágenes:', error);
+    res.status(500).json({ 
+      message: 'Error al obtener imágenes del usuario', 
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;

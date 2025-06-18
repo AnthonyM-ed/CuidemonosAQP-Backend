@@ -1,4 +1,5 @@
 const { SafeZone, SafeZoneUsers, PuntoSeguroStatus, User } = require('../models');
+const { uploadFile, deleteFile } = require('../controllers/imageController');
 
 module.exports = {
     async getAllSafeZones(req, res) {
@@ -85,10 +86,21 @@ module.exports = {
                 return res.status(400).json({ message: 'El rating debe estar entre 0 y 5' });
             }
 
-            // Si se subió imagen, usar esa; si no, null o valor del body
-            const photo_url = req.file
-                ? `${req.protocol}://${req.get('host')}/uploads/safezones/${req.file.filename}`
-                : req.body.photo_url || null;
+            // Manejar foto subida
+            let photo_url = null;
+            if (req.file) {
+                try {
+                    photo_url = await uploadFile(req.file, 'safezones');
+                } catch (uploadError) {
+                    console.error('Error al subir imagen de zona segura:', uploadError);
+                    return res.status(500).json({ 
+                        message: 'Error al subir imagen', 
+                        error: uploadError.message 
+                    });
+                }
+            } else if (req.body.photo_url) {
+                photo_url = req.body.photo_url;
+            }
 
             const newZone = await SafeZone.create({
                 name,
@@ -148,9 +160,28 @@ module.exports = {
                 return res.status(400).json({ message: 'El rating debe estar entre 0 y 5' });
             }
 
-            const photo_url = req.file
-                ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
-                : req.body.photo_url || zone.photo_url;
+            let photo_url = zone.photo_url; // Mantener la URL actual por defecto
+
+            // Manejar nueva imagen subida
+            if (req.file) {
+                try {
+                    // Eliminar imagen anterior si existe
+                    if (zone.photo_url) {
+                        await deleteFile(zone.photo_url);
+                    }
+                    // Subir nueva imagen
+                    photo_url = await uploadFile(req.file, 'safezones');
+                } catch (uploadError) {
+                    console.error('Error al actualizar imagen de zona segura:', uploadError);
+                    return res.status(500).json({ 
+                        message: 'Error al actualizar imagen', 
+                        error: uploadError.message 
+                    });
+                }
+            } else if (req.body.photo_url) {
+                // Si se proporciona una nueva URL en el body
+                photo_url = req.body.photo_url;
+            }
 
             await zone.update({
                 name,
@@ -178,5 +209,4 @@ module.exports = {
             res.status(500).json({ message: 'Error al actualizar la zona', error: err.message });
         }
     }
-
 };

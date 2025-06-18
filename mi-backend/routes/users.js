@@ -1,22 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcrypt');
 const { User } = require('../models'); // importa modelo Sequelize
 const authenticateToken = require('../middleware/authenticateToken');
-const multer = require('multer');
-const path = require('path');
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    const name = Date.now() + '-' + file.fieldname + ext;
-    cb(null, name);
-  }
-});
-
-const upload = multer({ storage });
+const { uploadFile, deleteFile, createUploadMiddleware } = require('../controllers/imageController');
 
 // GET /users - lista todos los usuarios (protegido)
 router.get('/', authenticateToken, async (req, res) => {
@@ -83,7 +70,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.put(
   '/:id',
   authenticateToken,
-  upload.fields([
+  createUploadMiddleware([
     { name: 'dni_photo', maxCount: 1 },
     { name: 'profile_photo', maxCount: 1 },
   ]),
@@ -100,13 +87,21 @@ router.put(
         return res.status(400).json({ message: 'El DNI no puede estar vacío.' });
       }
 
-      // Adjuntar URLs si se suben archivos
+      // Manejar archivos subidos
       if (req.files?.dni_photo?.[0]) {
-        updateData.dni_photo_url = `${req.protocol}://${req.get('host')}/uploads/${req.files.dni_photo[0].filename}`;
+        // Eliminar foto anterior si existe
+        if (user.dni_photo_url) {
+          await deleteFile(user.dni_photo_url);
+        }
+        updateData.dni_photo_url = await uploadFile(req.files.dni_photo[0], 'dni_photos');
       }
 
       if (req.files?.profile_photo?.[0]) {
-        updateData.profile_photo_url = `${req.protocol}://${req.get('host')}/uploads/${req.files.profile_photo[0].filename}`;
+        // Eliminar foto anterior si existe
+        if (user.profile_photo_url) {
+          await deleteFile(user.profile_photo_url);
+        }
+        updateData.profile_photo_url = await uploadFile(req.files.profile_photo[0], 'profile_photos');
       }
 
       await user.update(updateData);
@@ -121,7 +116,6 @@ router.put(
     }
   }
 );
-
 
 // PATCH /users/:id/password - cambiar contraseña
 router.patch('/:id/password', authenticateToken, async (req, res) => {
@@ -140,4 +134,5 @@ router.patch('/:id/password', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error al actualizar la contraseña', error });
   }
 });
+
 module.exports = router;
