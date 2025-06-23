@@ -4,7 +4,7 @@ module.exports = (sequelize, DataTypes) => {
   class LiveStream extends Model {
     static associate(models) {
       LiveStream.belongsTo(models.User, { foreignKey: 'user_id' });
-      LiveStream.hasMany(models.Comment, { foreignKey: 'live_stream_id' });
+      LiveStream.hasMany(models.LivestreamComment, { foreignKey: 'live_stream_id' });
     }
   }
   LiveStream.init(
