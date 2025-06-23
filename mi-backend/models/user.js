@@ -10,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'user_id',
       });
       User.hasMany(models.LiveStream, { foreignKey: 'user_id' });
-      User.hasMany(models.Comment, { foreignKey: 'user_id' });
+      User.hasMany(models.LivestreamComment, { foreignKey: 'user_id' });
       User.belongsTo(models.ReputationStatus, {
         foreignKey: 'reputation_status_id',
         as: 'reputationStatus',
