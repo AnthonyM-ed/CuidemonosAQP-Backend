@@ -112,6 +112,9 @@ router.post('/register', createUploadMiddleware([
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) return res.status(409).json({ message: 'Email ya registrado' });
 
+    const existingDNI = await User.findOne({ where: { dni } });
+    if (existingDNI) return res.status(409).json({ message: 'DNI ya registrado' });
+
     let dni_photo_url = null;
     let profile_photo_url = null;
 
@@ -125,9 +128,9 @@ router.post('/register', createUploadMiddleware([
       }
     } catch (uploadError) {
       console.error('Error al subir archivos:', uploadError);
-      return res.status(500).json({ 
-        message: 'Error al subir archivos', 
-        error: uploadError.message 
+      return res.status(500).json({
+        message: 'Error al subir archivos',
+        error: uploadError.message
       });
     }
 
@@ -151,6 +154,18 @@ router.post('/register', createUploadMiddleware([
     res.status(201).json(userData);
   } catch (error) {
     console.error(error);
+    // Validar error de clave duplicada
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      if (error.errors && error.errors[0].path === 'dni') {
+        return res.status(409).json({ message: `El DNI ${req.body.dni} ya está registrado` });
+      }
+
+      if (error.errors && error.errors[0].path === 'email') {
+        return res.status(409).json({ message: `El correo ${req.body.email} ya está registrado` });
+      }
+
+      return res.status(409).json({ message: 'Dato duplicado: ya existe un usuario con esa información única' });
+    }
     res.status(500).json({ message: 'Error al registrar usuario', error: error.message });
   }
 });
@@ -176,7 +191,7 @@ router.post('/upload-image', authenticateToken, createUploadMiddleware('image'),
     }
 
     const { type = 'general' } = req.body;
-    
+
     const imageUrl = await uploadFile(req.file, `${type}_images`);
 
     res.status(200).json({
@@ -186,9 +201,9 @@ router.post('/upload-image', authenticateToken, createUploadMiddleware('image'),
     });
   } catch (error) {
     console.error('Error al subir imagen:', error);
-    res.status(500).json({ 
-      message: 'Error al subir imagen', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Error al subir imagen',
+      error: error.message
     });
   }
 });
@@ -222,9 +237,9 @@ router.put('/update-profile-photo', authenticateToken, createUploadMiddleware('p
     });
   } catch (error) {
     console.error('Error al actualizar foto de perfil:', error);
-    res.status(500).json({ 
-      message: 'Error al actualizar foto de perfil', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Error al actualizar foto de perfil',
+      error: error.message
     });
   }
 });
@@ -235,7 +250,7 @@ router.get('/my-images', authenticateToken, async (req, res) => {
     const user = await User.findByPk(req.user.id, {
       attributes: ['id', 'dni_photo_url', 'profile_photo_url', 'first_name', 'last_name']
     });
-    
+
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
     const images = {
@@ -250,9 +265,9 @@ router.get('/my-images', authenticateToken, async (req, res) => {
     res.json(images);
   } catch (error) {
     console.error('Error al obtener imágenes:', error);
-    res.status(500).json({ 
-      message: 'Error al obtener imágenes del usuario', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Error al obtener imágenes del usuario',
+      error: error.message
     });
   }
 });
