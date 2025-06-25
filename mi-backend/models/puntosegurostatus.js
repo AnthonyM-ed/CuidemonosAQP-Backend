@@ -29,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'PuntoSeguroStatus',
-    tableName: 'punto_seguro_statuses',
+    tableName: 'safe_zone_statuses',
     timestamps: true,
   });
   return PuntoSeguroStatus;
