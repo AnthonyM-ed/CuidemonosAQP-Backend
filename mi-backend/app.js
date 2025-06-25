@@ -9,6 +9,7 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var authRouter = require('./routes/auth');
 var safezonesRouter = require('./routes/safezones'); // ✅ importar ruta de zonas
+var userReviewRouter = require('./routes/users-reviews');
 
 var app = express();
 
@@ -40,6 +41,7 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/auth', authRouter);
 app.use('/safezones', safezonesRouter); // ✅ usar la ruta aquí
+app.use('/user-review', userReviewRouter);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
