@@ -37,7 +37,11 @@ router.post('/login', async (req, res) => {
 
     await User.update({ refresh_token: refreshToken }, { where: { id: user.id } });
 
-    res.json({ accessToken, refreshToken });
+    res.json({
+      id: user.id,
+      accessToken,
+      refreshToken
+    });
   } catch (error) {
     console.error('Error en login:', error);
     res.status(500).json({
