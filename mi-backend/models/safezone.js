@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
       SafeZone.belongsToMany(models.User, {
         through: 'SafeZoneUsers',
         foreignKey: 'safe_zone_id',
+        as: "users"
       });
       SafeZone.belongsTo(models.PuntoSeguroStatus, {
         foreignKey: 'status_id',
