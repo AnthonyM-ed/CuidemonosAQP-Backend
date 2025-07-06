@@ -7,7 +7,7 @@ module.exports = {
             const zones = await SafeZone.findAll({
                 include: [
                     { model: PuntoSeguroStatus, as: 'status' },
-                    { model: User, through: { attributes: [] } }
+                    { model: User, as: "users", through: { attributes: [] } }
                 ]
             });
             res.json(zones);
