@@ -127,7 +127,7 @@ module.exports = {
             const zoneWithUsers = await SafeZone.findByPk(newZone.id, {
                 include: [
                     { model: PuntoSeguroStatus, as: 'status' },
-                    { model: User, through: { attributes: [] } }
+                    { model: User, as :"users", through: { attributes: [] } }
                 ]
             });
 
