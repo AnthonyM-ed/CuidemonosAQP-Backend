@@ -18,10 +18,12 @@ module.exports = {
 
     async getSafeZoneById(req, res) {
         try {
-            const zone = await SafeZone.findByPk(req.params.id, {
+            const id = req.params.id
+            
+            const zone = await SafeZone.findByPk(id, {
                 include: [
                     { model: PuntoSeguroStatus, as: 'status' },
-                    { model: User, through: { attributes: [] } }
+                    { model: User, as: "users" , through: { attributes: [] } }
                 ]
             });
             if (!zone) return res.status(404).json({ message: 'Zona no encontrada' });
