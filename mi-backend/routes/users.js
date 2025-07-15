@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
+const { Op } = require('sequelize');
 const bcrypt = require('bcrypt');
 const { User } = require('../models'); // importa modelo Sequelize
 const authenticateToken = require('../middleware/authenticateToken');
 const { uploadFile, deleteFile, createUploadMiddleware } = require('../controllers/imageController');
 
 // GET /users - lista todos los usuarios (protegido)
-router.get('/', authenticateToken, async (req, res) => {
+/*router.get('/', authenticateToken, async (req, res) => {
   try {
     const users = await User.findAll({
       attributes: { exclude: ['password'] }, // no devolver contraseña
@@ -14,6 +15,33 @@ router.get('/', authenticateToken, async (req, res) => {
     });
     res.json(users);
   } catch (error) {
+    res.status(500).json({ message: 'Error al obtener usuarios', error });
+  }
+});
+*/
+
+
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const { search } = req.query;
+    const where = search
+      ? {
+          [Op.or]: [
+            { first_name: { [Op.iLike]: `%${search}%` } },
+            { last_name:  { [Op.iLike]: `%${search}%` } },
+            { email:      { [Op.iLike]: `%${search}%` } },
+          ]
+        }
+      : {};
+
+    const users = await User.findAll({
+      where,
+      attributes: { exclude: ['password'] },
+      include: ['reputationStatus']
+    });
+    res.json(users);
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error al obtener usuarios', error });
   }
 });
