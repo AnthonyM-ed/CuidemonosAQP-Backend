@@ -20,36 +20,39 @@ const { uploadFile, deleteFile, createUploadMiddleware } = require('../controlle
 });
 */
 
-
-router.get('/', authenticateToken, async (req, res) => {
+router.post('/', 
+  createUploadMiddleware([
+    { name: 'dni_photo', maxCount: 1 },
+    { name: 'profile_photo', maxCount: 1 },
+  ]),
+  async (req, res) => {
   try {
-    const { search } = req.query;
-    const where = search
-      ? {
-          [Op.or]: [
-            { first_name: { [Op.iLike]: `%${search}%` } },
-            { last_name:  { [Op.iLike]: `%${search}%` } },
-            { email:      { [Op.iLike]: `%${search}%` } },
-          ]
-        }
-      : {};
+    const {
+      dni,
+      first_name,
+      last_name,
+      dni_extension,
+      password,
+      phone,
+      email,
+      address,
+      reputation_status_id,
+    } = req.body;
 
-    const users = await User.findAll({
-      where,
-      attributes: { exclude: ['password'] },
-      include: ['reputationStatus']
-    });
-    res.json(users);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al obtener usuarios', error });
-  }
-});
+    // Agrega estas líneas para extraer las coordenadas:
+    const address_latitude = req.body.address_latitude ? parseFloat(req.body.address_latitude) : null;
+    const address_longitude = req.body.address_longitude ? parseFloat(req.body.address_longitude) : null;
 
-// POST /users - crear nuevo usuario
-router.post('/', async (req, res) => {
-  try {
-    const { dni, first_name, last_name, dni_extension, password, phone, email, reputation_status_id } = req.body;
+    // Y también maneja las imágenes:
+    let dni_photo_url = null;
+    let profile_photo_url = null;
+
+    if (req.files?.dni_photo?.[0]) {
+      dni_photo_url = await uploadFile(req.files.dni_photo[0], 'dni_photos');
+    }
+    if (req.files?.profile_photo?.[0]) {
+      profile_photo_url = await uploadFile(req.files.profile_photo[0], 'profile_photos');
+    }
 
     if (!password) return res.status(400).json({ message: 'Password es obligatorio' });
 
@@ -64,13 +67,16 @@ router.post('/', async (req, res) => {
       password,
       phone,
       email,
+      address,
       reputation_status_id,
+      address_latitude,  // Ya parseados
+      address_longitude, // Ya parseados
+      dni_photo_url,     // Agregar si hay imagen
+      profile_photo_url  // Agregar si hay imagen
     });
 
-    // No devolver password en la respuesta
     const userData = newUser.toJSON();
     delete userData.password;
-
     res.status(201).json(userData);
   } catch (error) {
     res.status(500).json({ message: 'Error al crear usuario', error });
@@ -110,33 +116,28 @@ router.put(
       const user = await User.findByPk(id);
       if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-      // Validación opcional: asegurar que 'dni' no esté vacío si lo estás actualizando
       if (updateData.dni === '') {
         return res.status(400).json({ message: 'El DNI no puede estar vacío.' });
       }
 
-      // Manejar archivos subidos
+      // Archivos
       if (req.files?.dni_photo?.[0]) {
-        // Eliminar foto anterior si existe
-        if (user.dni_photo_url) {
-          await deleteFile(user.dni_photo_url);
-        }
+        if (user.dni_photo_url) await deleteFile(user.dni_photo_url);
         updateData.dni_photo_url = await uploadFile(req.files.dni_photo[0], 'dni_photos');
       }
-
       if (req.files?.profile_photo?.[0]) {
-        // Eliminar foto anterior si existe
-        if (user.profile_photo_url) {
-          await deleteFile(user.profile_photo_url);
-        }
+        if (user.profile_photo_url) await deleteFile(user.profile_photo_url);
         updateData.profile_photo_url = await uploadFile(req.files.profile_photo[0], 'profile_photos');
       }
+
+      // **Aquí agregamos lat/lng**
+      if (req.body.address_latitude !== undefined)  updateData.address_latitude  = req.body.address_latitude;
+      if (req.body.address_longitude !== undefined) updateData.address_longitude = req.body.address_longitude;
 
       await user.update(updateData);
 
       const updatedUser = user.toJSON();
       delete updatedUser.password;
-
       res.json(updatedUser);
     } catch (error) {
       console.error(error);
@@ -144,6 +145,7 @@ router.put(
     }
   }
 );
+
 
 // PATCH /users/:id/password - cambiar contraseña
 router.patch('/:id/password', authenticateToken, async (req, res) => {

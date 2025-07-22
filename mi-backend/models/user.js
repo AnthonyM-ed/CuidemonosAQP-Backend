@@ -50,6 +50,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         defaultValue: null, // o alguna imagen genérica
       },
+      address_latitude: {
+        type: DataTypes.FLOAT,
+        allowNull: true
+      },
+      address_longitude: {
+        type: DataTypes.FLOAT,
+        allowNull: true
+      },
       profile_photo_url: {
         type: DataTypes.STRING,
         defaultValue: null, // o alguna imagen genérica
