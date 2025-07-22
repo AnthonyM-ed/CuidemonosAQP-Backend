@@ -20,6 +20,34 @@ const { uploadFile, deleteFile, createUploadMiddleware } = require('../controlle
 });
 */
 
+// GET /users - lista todos los usuarios (protegido) con búsqueda opcional
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const { search } = req.query;
+    const where = search
+      ? {
+          [Op.or]: [
+            { first_name:  { [Op.iLike]: `%${search}%` } },
+            { last_name:   { [Op.iLike]: `%${search}%` } },
+            { email:       { [Op.iLike]: `%${search}%` } },
+          ]
+        }
+      : {};
+
+    const users = await User.findAll({
+      where,
+      attributes: { exclude: ['password'] },  // devuelve todo menos password
+      include: ['reputationStatus']           // carga también el status de reputación
+    });
+
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al obtener usuarios', error });
+  }
+});
+
+
 router.post('/', 
   createUploadMiddleware([
     { name: 'dni_photo', maxCount: 1 },
