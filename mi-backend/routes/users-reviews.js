@@ -25,7 +25,19 @@ router.post('/', authenticateToken, async (req, res) => {
       score,
     });
 
-    res.status(201).json(review);
+     // Reconsultar incluyendo los datos del reviewer
+    const reviewWithReviewer = await UserReview.findOne({
+      where: { id: review.id },
+      include: [
+        {
+          model: User,
+          as: 'reviewer',
+          attributes: ['id', 'first_name', 'last_name', 'profile_photo_url'],
+        },
+      ],
+    });
+
+    res.status(201).json(reviewWithReviewer);
   } catch (error) {
     res.status(500).json({ message: 'Error al crear la reseña', error });
   }
