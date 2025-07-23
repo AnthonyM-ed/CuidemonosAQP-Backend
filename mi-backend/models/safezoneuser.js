@@ -16,6 +16,11 @@ module.exports = (sequelize, DataTypes) => {
   }
   SafeZoneUsers.init(
     {
+      id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+      },
       safe_zone_id: {
         type: DataTypes.INTEGER,
         references: { model: "SafeZones", key: "id" },
@@ -24,9 +29,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         references: { model: "Users", key: "id" },
       },
-      confirmed: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false,
+      status: {
+        type: DataTypes.ENUM("PENDING", "ACCEPTED", "REJECTED"),
+        allowNull: false,
+        defaultValue: "PENDING",
       },
       confirmed_at: {
         type: DataTypes.DATE,
